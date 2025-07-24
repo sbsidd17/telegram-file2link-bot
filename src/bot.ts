@@ -1,6 +1,6 @@
 import { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
-import { extractFileInfo, formatFileSize, getFileTypeEmoji } from './utils';
+import { extractFileInfo, formatFileSize, getFileTypeEmoji, isFileTooLarge } from './utils';
 import { FileInfo, MyContext } from './types';
 
 export const bot = new Telegraf<MyContext>(process.env.BOT_TOKEN!);
@@ -11,7 +11,8 @@ bot.start((ctx) => {
     `📁 *Welcome to File2Link Bot\\!*\n\n` +
     `Send me any file \\(up to 4GB\\) and I'll provide a direct download link\\.\n\n` +
     `⚠️ *Note:* Links are valid for 1 hour\n` +
-    `🔧 *Supported types:* Documents, Videos, Photos, Audio`
+    `🔧 *Supported types:* Documents, Videos, Photos, Audio\n` +
+    `💡 *Tip:* For files >20MB, use the generated link directly in your browser`
   );
 });
 
@@ -27,7 +28,10 @@ bot.help((ctx) => {
     `\\- Documents \\(ZIP, PDF, etc\\.\\)\n` +
     `\\- Videos \\(MP4, MOV, etc\\.\\)\n` +
     `\\- Photos \\(JPG, PNG, etc\\.\\)\n` +
-    `\\- Audio files \\(MP3, WAV, etc\\.\\)`
+    `\\- Audio files \\(MP3, WAV, etc\\.\\)\n\n` +
+    `💡 *Important for large files:*\n` +
+    `Files over 20MB cannot be downloaded via bot API,\\n` +
+    `but the generated link will work in web browsers\\!`
   );
 });
 
@@ -46,37 +50,57 @@ bot.on([message('document'), message('video'), message('photo'), message('audio'
       }
     });
 
-    // Get file link (valid for 1 hour)
-    const fileLink = await ctx.telegram.getFileLink(fileInfo.file_id);
-    
-    // Prepare response
-    const emoji = getFileTypeEmoji(fileInfo.file_type);
-    let response = `${emoji} *${fileInfo.file_name || 'File'}*\n\n`;
-    
-    if (fileInfo.file_name) {
-      response += `📝 *Name:* ${fileInfo.file_name}\n`;
-    }
-    
-    response += `📦 *Size:* ${formatFileSize(fileInfo.file_size)}\n`;
-    response += `🔗 *Download Link:*\n\`${fileLink}\`\n\n`;
-    response += '_⚠️ Link valid for 1 hour_';
+    // Handle large files differently
+    if (isFileTooLarge(fileInfo.file_size)) {
+      // Construct direct download URL using file_id
+      const fileLink = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileInfo.file_id}`;
+      
+      // Prepare response for large files
+      const emoji = getFileTypeEmoji(fileInfo.file_type);
+      let response = `${emoji} *${fileInfo.file_name || 'Large File'}*\n\n`;
+      response += `📦 *Size:* ${formatFileSize(fileInfo.file_size)} (over 20MB)\n`;
+      response += `🔗 *Download Link:*\n${fileLink}\n\n`;
+      response += '💡 *Important:* This link will only work in web browsers!';
+      
+      await ctx.telegram.editMessageText(
+        ctx.chat!.id,
+        processingMsg.message_id,
+        undefined,
+        response,
+        { parse_mode: 'Markdown' }
+      );
+    } else {
+      // Handle small files normally
+      const fileLink = await ctx.telegram.getFileLink(fileInfo.file_id);
+      
+      const emoji = getFileTypeEmoji(fileInfo.file_type);
+      let response = `${emoji} *${fileInfo.file_name || 'File'}*\n\n`;
+      if (fileInfo.file_name) response += `📝 *Name:* ${fileInfo.file_name}\n`;
+      response += `📦 *Size:* ${formatFileSize(fileInfo.file_size)}\n`;
+      response += `🔗 *Download Link:*\n${fileLink}\n\n`;
+      response += '_⚠️ Link valid for 1 hour_';
 
-    // Edit processing message with result
-    await ctx.telegram.editMessageText(
-      ctx.chat!.id,
-      processingMsg.message_id,
-      undefined,
-      response,
-      { parse_mode: 'Markdown' }
-    );
+      await ctx.telegram.editMessageText(
+        ctx.chat!.id,
+        processingMsg.message_id,
+        undefined,
+        response,
+        { parse_mode: 'Markdown' }
+      );
+    }
   } catch (error) {
     console.error('Error processing file:', error);
     
-    // Handle file size errors specifically
-    if (error instanceof Error && error.message.includes('file is too big')) {
-      ctx.reply('❌ File size exceeds Telegram bot limits (max 4GB).');
+    if (error instanceof Error) {
+      if (error.message.includes('file is too big')) {
+        ctx.reply('❌ Telegram API limitation: Files over 20MB require special handling. Please try again.');
+      } else if (error.message.includes('not found')) {
+        ctx.reply('❌ File not found. It may have been deleted from Telegram servers.');
+      } else {
+        ctx.reply('❌ Error processing file. Please try again.');
+      }
     } else {
-      ctx.reply('❌ Error processing file. Please try again.');
+      ctx.reply('❌ Unknown error occurred. Please try again.');
     }
   }
 });
