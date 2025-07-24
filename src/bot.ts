@@ -1,12 +1,9 @@
 import { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
-import dotenv from 'dotenv';
 import { extractFileInfo, formatFileSize, getFileTypeEmoji } from './utils';
 import { FileInfo, MyContext } from './types';
 
-dotenv.config();
-
-const bot = new Telegraf<MyContext>(process.env.BOT_TOKEN!);
+export const bot = new Telegraf<MyContext>(process.env.BOT_TOKEN!);
 
 // Start command handler
 bot.start((ctx) => {
@@ -44,7 +41,9 @@ bot.on([message('document'), message('video'), message('photo'), message('audio'
 
     // Send processing message
     const processingMsg = await ctx.reply('⏳ Processing your file...', {
-      reply_parameters: { message_id: ctx.message.message_id }
+      reply_parameters: {
+        message_id: ctx.message.message_id
+      }
     });
 
     // Get file link (valid for 1 hour)
@@ -87,12 +86,3 @@ bot.catch((err, ctx) => {
   console.error(`Error for ${ctx.updateType}:`, err);
   ctx.reply('❌ An error occurred. Please try again.');
 });
-
-// Start the bot
-bot.launch().then(() => {
-  console.log('🚀 Bot started successfully');
-});
-
-// Enable graceful shutdown
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
