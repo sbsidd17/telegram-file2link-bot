@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Telegram File to Link Bot",
   "license": "MIT",
-  "main": "dist/bot.js",
   "scripts": {
     "start": "node dist/src/bot.js",
     "build": "tsc",
