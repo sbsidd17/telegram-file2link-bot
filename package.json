@@ -1,10 +1,11 @@
 {
   "name": "telegram-file2link-bot",
   "version": "1.0.0",
-  "description": "Telegram File to Link Bot with 4GB support",
+  "description": "Telegram File to Link Bot",
+  "license": "MIT",
   "main": "dist/bot.js",
   "scripts": {
-    "start": "node dist/bot.js",
+    "start": "node dist/src/bot.js",
     "build": "tsc",
     "dev": "ts-node src/bot.ts",
     "vercel-build": "npm run build"
