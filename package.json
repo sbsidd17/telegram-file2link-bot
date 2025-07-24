@@ -17,6 +17,9 @@
   "devDependencies": {
     "typescript": "^5.4.5",
     "ts-node": "^10.9.2",
-    "@types/node": "^20.11.7"
+    "@types/node": "^18.18.2"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
