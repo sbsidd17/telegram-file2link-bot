@@ -1,7 +1,6 @@
 import { FileInfo } from './types';
 
 export const extractFileInfo = (ctx: any): FileInfo | null => {
-  // Document handling
   if (ctx.message?.document) {
     return {
       file_id: ctx.message.document.file_id,
@@ -12,7 +11,6 @@ export const extractFileInfo = (ctx: any): FileInfo | null => {
     };
   }
 
-  // Video handling
   if (ctx.message?.video) {
     return {
       file_id: ctx.message.video.file_id,
@@ -23,8 +21,7 @@ export const extractFileInfo = (ctx: any): FileInfo | null => {
     };
   }
 
-  // Photo handling (largest version)
-  if (ctx.message?.photo && ctx.message.photo.length > 0) {
+  if (ctx.message?.photo?.length > 0) {
     const largestPhoto = ctx.message.photo.reduce(
       (prev: any, current: any) => 
         (prev.file_size > current.file_size) ? prev : current
@@ -37,7 +34,6 @@ export const extractFileInfo = (ctx: any): FileInfo | null => {
     };
   }
 
-  // Audio handling
   if (ctx.message?.audio) {
     return {
       file_id: ctx.message.audio.file_id,
@@ -74,8 +70,4 @@ export const getFileTypeEmoji = (type: string): string => {
     case 'audio': return '🎵';
     default: return '📁';
   }
-};
-
-export const isFileTooLarge = (fileSize?: number): boolean => {
-  return (fileSize || 0) > 20 * 1024 * 1024; // 20MB
 };
