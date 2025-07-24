@@ -5,12 +5,14 @@
   "main": "dist/bot.js",
   "scripts": {
     "start": "node dist/bot.js",
-    "build": "tsc --output public",
-    "dev": "ts-node src/bot.ts"
+    "build": "tsc",
+    "dev": "ts-node src/bot.ts",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "telegraf": "^4.12.2",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "@vercel/node": "^4.0.4"
   },
   "devDependencies": {
     "typescript": "^5.4.5",
