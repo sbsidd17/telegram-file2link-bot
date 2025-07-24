@@ -25,8 +25,9 @@ export const extractFileInfo = (ctx: any): FileInfo | null => {
 
   // Photo handling (largest version)
   if (ctx.message?.photo && ctx.message.photo.length > 0) {
-    const largestPhoto = ctx.message.photo.reduce((prev, current) => 
-      (prev.file_size > current.file_size) ? prev : current
+    const largestPhoto = ctx.message.photo.reduce(
+      (prev: any, current: any) => 
+        (prev.file_size > current.file_size) ? prev : current
     );
     return {
       file_id: largestPhoto.file_id,
