@@ -6,14 +6,10 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     if (req.method === 'POST') {
       await bot.handleUpdate(req.body, res);
     } else {
-      res.status(200).json({
-        status: 'online',
-        max_file_size: '4GB',
-        note: 'Links for files >20MB must be opened in browsers'
-      });
+      res.status(200).json({ status: 'online', max_size: '4GB' });
     }
   } catch (error) {
-    console.error('API error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Endpoint error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 };
