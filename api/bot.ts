@@ -8,12 +8,12 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     } else {
       res.status(200).json({
         status: 'online',
-        service: 'Telegram File2Link Bot',
-        version: '1.0'
+        max_file_size: '4GB',
+        note: 'Links for files >20MB must be opened in browsers'
       });
     }
   } catch (error) {
-    console.error('Serverless error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.error('API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
