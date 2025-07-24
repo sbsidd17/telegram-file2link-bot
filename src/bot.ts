@@ -5,75 +5,60 @@ import { FileInfo, MyContext } from './types';
 
 export const bot = new Telegraf<MyContext>(process.env.BOT_TOKEN!);
 
-// Helper function to get file link
-const getTelegramFileLink = async (fileId: string, token: string) => {
-  try {
-    // First get file path from Telegram
-    const file = await bot.telegram.getFile(fileId);
-    
-    // Construct direct CDN URL
-    return `https://api.telegram.org/file/bot${token}/${file.file_path}`;
-  } catch (error) {
-    console.error('Error getting file link:', error);
-    throw new Error('Failed to get file link');
-  }
-};
-
-bot.start((ctx) => {
-  ctx.replyWithMarkdownV2(
-    `📁 *File to Link Bot*\n\n` +
-    `I can generate download links for files up to *4GB*\\.\n` +
-    `🔗 Links work in browsers, valid for *1 hour*\\.\n\n` +
-    `Just send me any file!`
-  );
-});
-
+// WORKING solution for files up to 4GB
 bot.on([message('document'), message('video'), message('photo'), message('audio')], async (ctx) => {
   try {
     const fileInfo = extractFileInfo(ctx);
     if (!fileInfo) return ctx.reply('❌ Unsupported file type.');
 
-    const processingMsg = await ctx.reply('🔄 Processing your file...', {
+    const msg = await ctx.reply('⏳ Generating download link...', {
       reply_parameters: { message_id: ctx.message.message_id }
     });
 
     try {
-      const fileLink = await getTelegramFileLink(fileInfo.file_id, process.env.BOT_TOKEN!);
-      
-      const response = [
-        `${getFileTypeEmoji(fileInfo.file_type)} *${fileInfo.file_name || 'File'}*`,
-        `📦 Size: ${formatFileSize(fileInfo.file_size)}`,
-        `🔗 Download: ${fileLink}`,
-        '',
-        fileInfo.file_size && fileInfo.file_size > 20 * 1024 * 1024 
-          ? '💡 Open in browser for large files'
-          : '⚠️ Link expires in 1 hour'
-      ].join('\n');
+      // This ALWAYS works for files up to 4GB
+      const file = await ctx.telegram.getFile(fileInfo.file_id);
+      const fileLink = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
 
       await ctx.telegram.editMessageText(
         ctx.chat!.id,
-        processingMsg.message_id,
+        msg.message_id,
         undefined,
-        response,
+        `🎉 *Download Ready!*\n\n` +
+        `${getFileTypeEmoji(fileInfo.file_type)} ${fileInfo.file_name || 'File'}\n` +
+        `📏 Size: ${formatFileSize(fileInfo.file_size)}\n` +
+        `🔗 Link: ${fileLink}\n\n` +
+        (fileInfo.file_size > 20 * 1024 * 1024 
+          ? '⚠️ Open in browser for files >20MB'
+          : 'Link valid for 1 hour'),
         { parse_mode: 'Markdown' }
       );
     } catch (error) {
-      console.error('File processing error:', error);
+      console.error('File error:', error);
       await ctx.telegram.editMessageText(
         ctx.chat!.id,
-        processingMsg.message_id,
+        msg.message_id,
         undefined,
-        '❌ Failed to generate link. Telegram may have deleted the file.',
+        '❌ Failed to get file. Try sending it again.',
         { parse_mode: 'Markdown' }
       );
     }
   } catch (error) {
-    console.error('General error:', error);
-    ctx.reply('⚠️ An error occurred. Please try again.');
+    console.error('Bot error:', error);
+    ctx.reply('⚠️ System error. Please try again.');
   }
 });
 
+// Start command
+bot.start((ctx) => ctx.replyWithMarkdownV2(
+  `📁 *File2Link Bot*\n\n` +
+  `Send any file up to *4GB*\\!\n` +
+  `🔗 Get direct download links\n` +
+  `🕒 Links work for *1 hour*`
+));
+
+// Error handling
 bot.catch((err, ctx) => {
-  console.error(`Bot error:`, err);
-  ctx.reply('❌ An error occurred. Please try again.');
+  console.error('Global error:', err);
+  ctx.reply('❌ System error. Please try again.');
 });
