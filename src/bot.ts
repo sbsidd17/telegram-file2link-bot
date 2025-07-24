@@ -44,7 +44,7 @@ bot.on([message('document'), message('video'), message('photo'), message('audio'
 
     // Send processing message
     const processingMsg = await ctx.reply('⏳ Processing your file...', {
-      reply_to_message_id: ctx.message.message_id
+      reply_parameters: { message_id: ctx.message.message_id }
     });
 
     // Get file link (valid for 1 hour)
