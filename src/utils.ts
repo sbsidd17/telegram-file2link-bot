@@ -75,3 +75,7 @@ export const getFileTypeEmoji = (type: string): string => {
     default: return '📁';
   }
 };
+
+export const isFileTooLarge = (fileSize?: number): boolean => {
+  return (fileSize || 0) > 20 * 1024 * 1024; // 20MB
+};
