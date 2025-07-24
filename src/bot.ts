@@ -5,7 +5,6 @@ import { FileInfo, MyContext } from './types';
 
 export const bot = new Telegraf<MyContext>(process.env.BOT_TOKEN!);
 
-// Start command handler
 bot.start((ctx) => {
   ctx.replyWithMarkdownV2(
     `📁 *Welcome to File2Link Bot\\!*\n\n` +
@@ -16,7 +15,6 @@ bot.start((ctx) => {
   );
 });
 
-// Help command handler
 bot.help((ctx) => {
   ctx.replyWithMarkdownV2(
     `ℹ️ *How to use:*\n\n` +
@@ -35,7 +33,6 @@ bot.help((ctx) => {
   );
 });
 
-// File message handler
 bot.on([message('document'), message('video'), message('photo'), message('audio')], async (ctx) => {
   try {
     const fileInfo = extractFileInfo(ctx);
@@ -43,69 +40,72 @@ bot.on([message('document'), message('video'), message('photo'), message('audio'
       return ctx.reply('❌ Unsupported file type. Please send a document, video, photo, or audio file.');
     }
 
-    // Send processing message
     const processingMsg = await ctx.reply('⏳ Processing your file...', {
-      reply_parameters: {
-        message_id: ctx.message.message_id
-      }
+      reply_parameters: { message_id: ctx.message.message_id }
     });
 
-    // Handle large files differently
     if (isFileTooLarge(fileInfo.file_size)) {
-      // Construct direct download URL using file_id
-      const fileLink = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileInfo.file_id}`;
-      
-      // Prepare response for large files
-      const emoji = getFileTypeEmoji(fileInfo.file_type);
-      let response = `${emoji} *${fileInfo.file_name || 'Large File'}*\n\n`;
-      response += `📦 *Size:* ${formatFileSize(fileInfo.file_size)} (over 20MB)\n`;
-      response += `🔗 *Download Link:*\n${fileLink}\n\n`;
-      response += '💡 *Important:* This link will only work in web browsers!';
-      
-      await ctx.telegram.editMessageText(
-        ctx.chat!.id,
-        processingMsg.message_id,
-        undefined,
-        response,
-        { parse_mode: 'Markdown' }
-      );
-    } else {
-      // Handle small files normally
-      const fileLink = await ctx.telegram.getFileLink(fileInfo.file_id);
-      
-      const emoji = getFileTypeEmoji(fileInfo.file_type);
-      let response = `${emoji} *${fileInfo.file_name || 'File'}*\n\n`;
-      if (fileInfo.file_name) response += `📝 *Name:* ${fileInfo.file_name}\n`;
-      response += `📦 *Size:* ${formatFileSize(fileInfo.file_size)}\n`;
-      response += `🔗 *Download Link:*\n${fileLink}\n\n`;
-      response += '_⚠️ Link valid for 1 hour_';
-
-      await ctx.telegram.editMessageText(
-        ctx.chat!.id,
-        processingMsg.message_id,
-        undefined,
-        response,
-        { parse_mode: 'Markdown' }
-      );
-    }
-  } catch (error) {
-    console.error('Error processing file:', error);
-    
-    if (error instanceof Error) {
-      if (error.message.includes('file is too big')) {
-        ctx.reply('❌ Telegram API limitation: Files over 20MB require special handling. Please try again.');
-      } else if (error.message.includes('not found')) {
-        ctx.reply('❌ File not found. It may have been deleted from Telegram servers.');
-      } else {
-        ctx.reply('❌ Error processing file. Please try again.');
+      try {
+        const file = await ctx.telegram.getFile(fileInfo.file_id);
+        const fileLink = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
+        
+        const emoji = getFileTypeEmoji(fileInfo.file_type);
+        let response = `${emoji} *${fileInfo.file_name || 'Large File'}*\n\n`;
+        response += `📦 *Size:* ${formatFileSize(fileInfo.file_size)} (over 20MB)\n`;
+        response += `🔗 *Download Link:*\n${fileLink}\n\n`;
+        response += '💡 *Important:* This link will only work in web browsers!';
+        
+        await ctx.telegram.editMessageText(
+          ctx.chat!.id,
+          processingMsg.message_id,
+          undefined,
+          response,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (error) {
+        console.error('Large file processing error:', error);
+        await ctx.telegram.editMessageText(
+          ctx.chat!.id,
+          processingMsg.message_id,
+          undefined,
+          '❌ Failed to process large file. Please try again or send a smaller file.',
+          { parse_mode: 'Markdown' }
+        );
       }
     } else {
-      ctx.reply('❌ Unknown error occurred. Please try again.');
+      try {
+        const fileLink = await ctx.telegram.getFileLink(fileInfo.file_id);
+        const emoji = getFileTypeEmoji(fileInfo.file_type);
+        let response = `${emoji} *${fileInfo.file_name || 'File'}*\n\n`;
+        if (fileInfo.file_name) response += `📝 *Name:* ${fileInfo.file_name}\n`;
+        response += `📦 *Size:* ${formatFileSize(fileInfo.file_size)}\n`;
+        response += `🔗 *Download Link:*\n${fileLink}\n\n`;
+        response += '_⚠️ Link valid for 1 hour_';
+
+        await ctx.telegram.editMessageText(
+          ctx.chat!.id,
+          processingMsg.message_id,
+          undefined,
+          response,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (error) {
+        console.error('Small file processing error:', error);
+        await ctx.telegram.editMessageText(
+          ctx.chat!.id,
+          processingMsg.message_id,
+          undefined,
+          '❌ Failed to process file. Please try again.',
+          { parse_mode: 'Markdown' }
+        );
+      }
     }
+  } catch (error) {
+    console.error('General error:', error);
+    ctx.reply('❌ An unexpected error occurred. Please try again later.');
   }
 });
 
-// Error handling
 bot.catch((err, ctx) => {
   console.error(`Error for ${ctx.updateType}:`, err);
   ctx.reply('❌ An error occurred. Please try again.');
